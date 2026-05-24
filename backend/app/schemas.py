@@ -1,7 +1,9 @@
 from pydantic import BaseModel
+from datetime import datetime
 
 class ExpenseSchema(BaseModel):
-    description: str = ""
     amount: float
     type: str
     name: str
+    description: str = ""
+    date: datetime | None = None

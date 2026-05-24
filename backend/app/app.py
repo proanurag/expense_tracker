@@ -5,6 +5,8 @@ import re
 from datetime import date, datetime
 from typing import Any
 
+from uuid import UUID
+
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import delete, select
@@ -12,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import create_db_and_tables, get_async_session
 from app.models import Expense
+from app.schemas import ExpenseSchema
 
 try:
     import pandas as pd
@@ -188,16 +191,17 @@ app.add_middleware(
 
 @app.post("/expenses")
 async def create_expense(
-    amount: float,
-    description: str,
-    type: str,
-    name: str,
-    date: datetime | None = None,
+    expense: ExpenseSchema,
     session: AsyncSession = Depends(get_async_session),
 ):
-    new_expense = Expense(amount=amount, description=description, type=type, name=name)
-    if date is not None:
-        new_expense.date = date
+    new_expense = Expense(
+        amount=expense.amount,
+        description=expense.description,
+        type=expense.type,
+        name=expense.name,
+    )
+    if expense.date is not None:
+        new_expense.date = expense.date
     session.add(new_expense)
     await session.commit()
     await session.refresh(new_expense)
@@ -254,3 +258,14 @@ async def upload_file(file: UploadFile = File(...), session: AsyncSession = Depe
     session.add_all(expenses)
     await session.commit()
     return {"inserted": len(expenses)}
+
+@app.delete("/expenses/{id}")
+async def delete_expense(id: UUID, session: AsyncSession = Depends(get_async_session)):
+    result = await session.execute(select(Expense).where(Expense.id == id))
+    expense = result.scalars().first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    await session.execute(delete(Expense).where(Expense.id == id))
+    await session.commit()
+    return {"deleted": str(id)}

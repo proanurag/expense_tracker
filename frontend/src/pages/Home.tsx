@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { PieChart, Pie, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { TrendingUp, Package, Calendar, Upload, Plus, RefreshCw, AlertCircle, CheckCircle, IndianRupeeIcon } from 'lucide-react'
+import { Package, Calendar, Upload, Plus, RefreshCw, AlertCircle, CheckCircle, IndianRupeeIcon, TrashIcon } from 'lucide-react'
 import './Home.css'
 
 type Expense = {
@@ -151,18 +151,21 @@ export const Home = () => {
     setStatusMessage(null)
 
     try {
-      const formData = new URLSearchParams()
-      formData.append('amount', form.amount)
-      formData.append('description', form.description)
-      formData.append('type', form.type)
-      formData.append('name', form.name)
+      const formData: any = {} 
+      formData['amount'] = parseFloat(form.amount)
+      formData['description'] = form.description
+      formData['type'] = form.type
+      formData['name'] = form.name
       if (form.date.trim()) {
-        formData.append('date', form.date)
+        formData['date'] = form.date
       }
 
       const response = await fetch(`${API_BASE_URL}/expenses`, {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
       })
 
       if (!response.ok) {
@@ -217,6 +220,26 @@ export const Home = () => {
     }
   }
 
+  const handleDeleteIcon = async (event: React.MouseEvent, id: any) => {
+    event.preventDefault()
+    setError(null)
+    setStatusMessage(null)
+    try{
+      const response = await fetch(`${API_BASE_URL}/expenses/${id}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        const detail = payload?.detail ?? response.statusText
+        throw new Error(Array.isArray(detail) ? detail.join(', ') : detail)
+      }
+      setStatusMessage('Expense deleted successfully.')
+      await fetchExpenses()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    }
+  }
+
   return (
     <main className="dashboard-shell">
       <header className="dashboard-header">
@@ -255,15 +278,6 @@ export const Home = () => {
             <strong>{totals.count}</strong>
           </div>
         </article>
-        {/* <article className="summary-card card-warning">
-          <div className="card-icon">
-            <TrendingUp size={28} />
-          </div>
-          <div className="card-content">
-            <p>Average Cost</p>
-            <strong>{formatCurrency(totals.average)}</strong>
-          </div>
-        </article> */}
       </section>
       {topType && (
         <section className="top-type-strip">
@@ -471,6 +485,7 @@ export const Home = () => {
                     <th>Type</th>
                     <th>Vendor</th>
                     <th>Description</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -486,6 +501,8 @@ export const Home = () => {
                       </td>
                       <td>{expense.name}</td>
                       <td>{expense.description || '—'}</td>
+                      <td onClick={(e)=>handleDeleteIcon(e,expense.id)}> <TrashIcon size={20} /></td>
+                       
                     </tr>
                   ))}
                 </tbody>
