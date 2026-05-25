@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { PieChart, Pie, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { Package, Calendar, Upload, Plus, RefreshCw, AlertCircle, CheckCircle, IndianRupeeIcon, TrashIcon } from 'lucide-react'
+import { Package, Calendar, Upload, Plus, RefreshCw, AlertCircle, CheckCircle, IndianRupeeIcon, TrashIcon,  } from 'lucide-react'
 import './Home.css'
 
 type Expense = {
@@ -13,7 +13,7 @@ type Expense = {
   date?: string | null
 }
 
-const API_BASE_URL = 'http://localhost:8000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
 
@@ -278,6 +278,18 @@ export const Home = () => {
             <strong>{totals.count}</strong>
           </div>
         </article>
+        <article className="summary-card card-warning">
+          <div className="card-icon">
+            <IndianRupeeIcon size={28} />
+          </div>
+          <div className="card-content">
+            <p>Loan Amount Used of 78 lakhs</p>
+            <strong>
+              {formatCurrency(4260000)}
+              <span> (Remaining: {formatCurrency(3540000)})</span>
+            </strong>
+          </div>
+        </article>
       </section>
       {topType && (
         <section className="top-type-strip">
@@ -511,6 +523,7 @@ export const Home = () => {
           )}
         </section>
       )}
+
 
       {error && (
         <div className="alert alert-error">
