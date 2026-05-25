@@ -283,7 +283,7 @@ export const Home = () => {
             <IndianRupeeIcon size={28} />
           </div>
           <div className="card-content">
-            <p>Loan Amount Used of 78 lakhs</p>
+            <p>TBD</p>
             <strong>
               {formatCurrency(4260000)}
               <span> (Remaining: {formatCurrency(3540000)})</span>

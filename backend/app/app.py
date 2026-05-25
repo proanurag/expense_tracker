@@ -222,7 +222,7 @@ async def get_expenses(session: AsyncSession = Depends(get_async_session)):
             "name": expense.name,
             "date": expense.date.isoformat() if expense.date is not None else None,
         }
-        for expense in expenses
+        for i, expense in reversed(list(enumerate(expenses)))
     ]
 
 
