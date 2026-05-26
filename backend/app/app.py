@@ -208,9 +208,11 @@ async def create_expense(
     return new_expense
 
 
+from sqlalchemy import desc
+
 @app.get("/expenses")
 async def get_expenses(session: AsyncSession = Depends(get_async_session)):
-    result = await session.execute(select(Expense))
+    result = await session.execute(select(Expense).order_by(desc(Expense.date)))
     expenses = [row[0] for row in result.all()]
 
     return [
@@ -222,7 +224,7 @@ async def get_expenses(session: AsyncSession = Depends(get_async_session)):
             "name": expense.name,
             "date": expense.date.isoformat() if expense.date is not None else None,
         }
-        for i, expense in reversed(list(enumerate(expenses)))
+        for expense in expenses
     ]
 
 
