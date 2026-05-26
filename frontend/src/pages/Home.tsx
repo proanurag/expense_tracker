@@ -40,6 +40,16 @@ export const Home = () => {
   const [file, setFile] = useState<File | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
+  // Helper to show loader for async actions
+  const withLoader = async (fn: () => Promise<void>) => {
+    setLoading(true)
+    try {
+      await fn()
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const { totals, byType, byVendor, timeline, topType } = useMemo(() => {
     const total = expenses.reduce((sum, expense) => sum + expense.amount, 0)
     const count = expenses.length
@@ -120,20 +130,15 @@ export const Home = () => {
   }
 
   const fetchExpenses = async () => {
-    setLoading(true)
-    setError(null)
-    try {
+    await withLoader(async () => {
+      setError(null)
       const response = await fetch(`${API_BASE_URL}/expenses`)
       if (!response.ok) {
         throw new Error(`Unable to load expenses: ${response.statusText}`)
       }
       const data: Expense[] = await response.json()
       setExpenses(data)
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason))
-    } finally {
-      setLoading(false)
-    }
+    })
   }
 
   useEffect(() => {
@@ -149,9 +154,8 @@ export const Home = () => {
     event.preventDefault()
     setError(null)
     setStatusMessage(null)
-
-    try {
-      const formData: any = {} 
+    await withLoader(async () => {
+      const formData: any = {}
       formData['amount'] = parseFloat(form.amount)
       formData['description'] = form.description
       formData['type'] = form.type
@@ -159,7 +163,6 @@ export const Home = () => {
       if (form.date.trim()) {
         formData['date'] = form.date
       }
-
       const response = await fetch(`${API_BASE_URL}/expenses`, {
         method: 'POST',
         headers: {
@@ -167,19 +170,15 @@ export const Home = () => {
         },
         body: JSON.stringify(formData),
       })
-
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
         const detail = payload?.detail ?? response.statusText
         throw new Error(Array.isArray(detail) ? detail.join(', ') : detail)
       }
-
       setStatusMessage('Expense added successfully.')
       setForm({ amount: '', description: '', type: '', name: '', date: '' })
       await fetchExpenses()
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason))
-    }
+    })
   }
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -192,16 +191,13 @@ export const Home = () => {
     event.preventDefault()
     setError(null)
     setStatusMessage(null)
-
     if (!file) {
       setError('Select a CSV or Excel file before uploading.')
       return
     }
-
-    const uploadData = new FormData()
-    uploadData.append('file', file)
-
-    try {
+    await withLoader(async () => {
+      const uploadData = new FormData()
+      uploadData.append('file', file)
       const response = await fetch(`${API_BASE_URL}/upload`, {
         method: 'POST',
         body: uploadData,
@@ -211,20 +207,17 @@ export const Home = () => {
         const detail = payload?.detail ?? response.statusText
         throw new Error(Array.isArray(detail) ? detail.join(', ') : detail)
       }
-
       setStatusMessage(`Upload complete: ${payload.inserted} records inserted.`)
       setFile(null)
       await fetchExpenses()
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason))
-    }
+    })
   }
 
   const handleDeleteIcon = async (event: React.MouseEvent, id: any) => {
     event.preventDefault()
     setError(null)
     setStatusMessage(null)
-    try{
+    await withLoader(async () => {
       const response = await fetch(`${API_BASE_URL}/expenses/${id}`, {
         method: 'DELETE',
       })
@@ -235,13 +228,16 @@ export const Home = () => {
       }
       setStatusMessage('Expense deleted successfully.')
       await fetchExpenses()
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason))
-    }
+    })
   }
 
   return (
     <main className="dashboard-shell">
+      {loading && (
+        <div className="loader-overlay">
+          <div className="circular-loader"></div>
+        </div>
+      )}
       <header className="dashboard-header">
         <div className="header-content">
           <div className="header-title">
