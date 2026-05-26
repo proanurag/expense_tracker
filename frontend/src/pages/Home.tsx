@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { PieChart, Pie, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { Package, Calendar, Upload, Plus, RefreshCw, AlertCircle, CheckCircle, IndianRupeeIcon, TrashIcon,  } from 'lucide-react'
+import { Package, Calendar, Upload, Plus, RefreshCw, AlertCircle, CheckCircle, IndianRupeeIcon, TrashIcon,Edit2  } from 'lucide-react'
+
 import './Home.css'
 
 type Expense = {
@@ -39,6 +40,62 @@ export const Home = () => {
   const [form, setForm] = useState({ amount: '', description: '', type: '', name: '', date: '' })
   const [file, setFile] = useState<File | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ amount: '', description: '', type: '', name: '', date: '' })
+  const handleEditClick = (expense: Expense) => {
+    setEditId(expense.id)
+    setEditForm({
+      amount: expense.amount.toString(),
+      description: expense.description || '',
+      type: expense.type,
+      name: expense.name,
+      date: expense.date ? expense.date.split('T')[0] : '',
+    })
+    setError(null)
+    setStatusMessage(null)
+  }
+
+  const handleEditInputChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = event.target
+    setEditForm(current => ({ ...current, [name]: value }))
+  }
+
+  const handleEditCancel = () => {
+    setEditId(null)
+    setEditForm({ amount: '', description: '', type: '', name: '', date: '' })
+  }
+
+  const handleEditSave = async (id: string) => {
+    setError(null)
+    setStatusMessage(null)
+    await withLoader(async () => {
+      const updatedData: any = {
+        amount: parseFloat(editForm.amount),
+        description: editForm.description,
+        type: editForm.type,
+        name: editForm.name,
+      }
+      if (editForm.date.trim()) {
+        updatedData['date'] = editForm.date
+      }
+      const response = await fetch(`${API_BASE_URL}/expenses/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedData),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        const detail = payload?.detail ?? response.statusText
+        throw new Error(Array.isArray(detail) ? detail.join(', ') : detail)
+      }
+      setStatusMessage('Expense updated successfully.')
+      setEditId(null)
+      setEditForm({ amount: '', description: '', type: '', name: '', date: '' })
+      await fetchExpenses()
+    })
+  }
 
   // Helper to show loader for async actions
   const withLoader = async (fn: () => Promise<void>) => {
@@ -500,18 +557,79 @@ export const Home = () => {
                 <tbody>
                   {expenses.map(expense => (
                     <tr key={expense.id}>
-                      <td>
-                        <Calendar size={16} style={{ marginRight: '6px' }} />
-                        {formatDate(expense.date)}
-                      </td>
-                      <td className="amount-cell">{formatCurrency(expense.amount)}</td>
-                      <td>
-                        <span className="badge">{expense.type}</span>
-                      </td>
-                      <td>{expense.name}</td>
-                      <td>{expense.description || '—'}</td>
-                      <td onClick={(e)=>handleDeleteIcon(e,expense.id)}> <TrashIcon size={20} /></td>
-                       
+                      {editId === expense.id ? (
+                        <>
+                          <td>
+                            <input
+                              name="date"
+                              type="date"
+                              value={editForm.date}
+                              onChange={handleEditInputChange}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              name="amount"
+                              type="number"
+                              step="0.01"
+                              value={editForm.amount}
+                              onChange={handleEditInputChange}
+                              style={{ width: '90px' }}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              name="type"
+                              type="text"
+                              value={editForm.type}
+                              onChange={handleEditInputChange}
+                              style={{ width: '100px' }}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              name="name"
+                              type="text"
+                              value={editForm.name}
+                              onChange={handleEditInputChange}
+                              style={{ width: '120px' }}
+                            />
+                          </td>
+                          <td>
+                            <textarea
+                              name="description"
+                              value={editForm.description}
+                              onChange={handleEditInputChange}
+                              style={{ width: '120px', height: '28px' }}
+                            />
+                          </td>
+                          <td style={{ display: 'flex', gap: '8px' }}>
+                            <button className="btn-secondary" style={{ padding: '2px 8px' }} onClick={() => handleEditSave(expense.id)} title="Save">Save</button>
+                            <button className="btn-secondary" style={{ padding: '2px 8px' }} onClick={handleEditCancel} title="Cancel">Cancel</button>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td>
+                            <Calendar size={16} style={{ marginRight: '6px' }} />
+                            {formatDate(expense.date)}
+                          </td>
+                          <td className="amount-cell">{formatCurrency(expense.amount)}</td>
+                          <td>
+                            <span className="badge">{expense.type}</span>
+                          </td>
+                          <td>{expense.name}</td>
+                          <td>{expense.description || '—'}</td>
+                          <td style={{ display: 'flex', gap: '8px' }}>
+                            <span style={{ cursor: 'pointer' }} title="Edit" onClick={() => handleEditClick(expense)}>
+                              <Edit2 size={18} />
+                            </span>
+                            <span style={{ cursor: 'pointer' }} title="Delete" onClick={(e) => handleDeleteIcon(e, expense.id)}>
+                              <TrashIcon size={20} />
+                            </span>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>

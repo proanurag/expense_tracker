@@ -269,3 +269,21 @@ async def delete_expense(id: UUID, session: AsyncSession = Depends(get_async_ses
     await session.execute(delete(Expense).where(Expense.id == id))
     await session.commit()
     return {"deleted": str(id)}
+
+@app.put("/expenses/{id}")
+async def update_expense(id: UUID, expense: ExpenseSchema, session: AsyncSession = Depends(get_async_session)):
+    result = await session.execute(select(Expense).where(Expense.id == id))
+    existing = result.scalars().first()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    existing.amount = expense.amount
+    existing.description = expense.description
+    existing.type = expense.type
+    existing.name = expense.name
+    existing.date = expense.date
+
+    session.add(existing)
+    await session.commit()
+    await session.refresh(existing)
+    return existing
