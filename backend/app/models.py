@@ -1,5 +1,5 @@
 from app.db import Base
-from sqlalchemy import Column, String, Float, UUID, DateTime, Text, text
+from sqlalchemy import Column, String, Float, UUID, Date, DateTime, Text, text
 import uuid
 from datetime import datetime
 
@@ -12,3 +12,11 @@ class Expense(Base):
     description=Column(Text, nullable=False, server_default=text("''"))
     type=Column(String, nullable=False)
     date=Column(DateTime, default=datetime.utcnow)
+
+
+class SanctionedAmount(Base):
+    __tablename__ = "sanctioned_amounts"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    amount = Column(Float, nullable=False)
+    sanction_date = Column(Date, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

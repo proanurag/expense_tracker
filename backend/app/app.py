@@ -13,8 +13,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import create_db_and_tables, get_async_session
-from app.models import Expense
-from app.schemas import ExpenseSchema
+from app.models import Expense, SanctionedAmount
+from app.schemas import ExpenseSchema, SanctionedAmountSchema
 
 try:
     import pandas as pd
@@ -226,6 +226,82 @@ async def get_expenses(session: AsyncSession = Depends(get_async_session)):
         }
         for expense in expenses
     ]
+
+
+@app.get("/loan/sanctioned-amounts")
+async def get_sanctioned_amounts(session: AsyncSession = Depends(get_async_session)):
+    result = await session.execute(select(SanctionedAmount).order_by(desc(SanctionedAmount.created_at)))
+    amounts = result.scalars().all()
+    return [
+        {
+            "id": str(amount.id),
+            "amount": amount.amount,
+            "sanction_date": (amount.sanction_date or amount.created_at.date()).isoformat(),
+            "created_at": amount.created_at.isoformat(),
+        }
+        for amount in amounts
+    ]
+
+
+@app.post("/loan/sanctioned-amounts")
+async def create_sanctioned_amount(
+    sanctioned_amount: SanctionedAmountSchema,
+    session: AsyncSession = Depends(get_async_session),
+):
+    if sanctioned_amount.amount <= 0:
+        raise HTTPException(status_code=422, detail="Sanctioned amount must be greater than zero")
+
+    new_amount = SanctionedAmount(
+        amount=sanctioned_amount.amount,
+        sanction_date=sanctioned_amount.sanction_date,
+    )
+    session.add(new_amount)
+    await session.commit()
+    await session.refresh(new_amount)
+    return {
+        "id": str(new_amount.id),
+        "amount": new_amount.amount,
+        "sanction_date": (new_amount.sanction_date or new_amount.created_at.date()).isoformat(),
+        "created_at": new_amount.created_at.isoformat(),
+    }
+
+
+@app.put("/loan/sanctioned-amounts/{id}")
+async def update_sanctioned_amount(
+    id: UUID,
+    sanctioned_amount: SanctionedAmountSchema,
+    session: AsyncSession = Depends(get_async_session),
+):
+    if sanctioned_amount.amount <= 0:
+        raise HTTPException(status_code=422, detail="Sanctioned amount must be greater than zero")
+
+    result = await session.execute(select(SanctionedAmount).where(SanctionedAmount.id == id))
+    existing = result.scalars().first()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Sanctioned amount not found")
+
+    existing.amount = sanctioned_amount.amount
+    existing.sanction_date = sanctioned_amount.sanction_date
+    await session.commit()
+    await session.refresh(existing)
+    return {
+        "id": str(existing.id),
+        "amount": existing.amount,
+        "sanction_date": (existing.sanction_date or existing.created_at.date()).isoformat(),
+        "created_at": existing.created_at.isoformat(),
+    }
+
+
+@app.delete("/loan/sanctioned-amounts/{id}")
+async def delete_sanctioned_amount(id: UUID, session: AsyncSession = Depends(get_async_session)):
+    result = await session.execute(select(SanctionedAmount).where(SanctionedAmount.id == id))
+    existing = result.scalars().first()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Sanctioned amount not found")
+
+    await session.delete(existing)
+    await session.commit()
+    return {"deleted": str(id)}
 
 
 @app.post("/upload")

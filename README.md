@@ -34,6 +34,8 @@ A full-stack construction expense tracking project with a Python FastAPI backend
 - Endpoints:
   - `GET /expenses` — Returns all stored expenses.
   - `POST /expenses` — Creates a single expense using form data.
+  - `GET /loan/sanctioned-amounts` — Returns the sanctioned amount history.
+  - `POST /loan/sanctioned-amounts` — Adds a sanctioned amount increment.
   - `POST /upload` — Uploads a CSV or Excel file and inserts expenses in bulk.
 - Upload rules:
   - Supported file types: `.csv`, `.xls`, `.xlsx`
@@ -49,6 +51,7 @@ A full-stack construction expense tracking project with a Python FastAPI backend
   - Fetch and render live expense data.
   - Add expenses via a form.
   - Upload CSV/Excel expense files.
+  - View and add sanctioned loan amounts from the 78 lakh loan summary modal.
   - Display totals, average, category breakdowns, vendor totals, and timeline charts.
 - Uses `recharts` for charts and `lucide-react` for icons.
 - Default API base URL: `http://localhost:8000` (set in `frontend/src/pages/Home.tsx`).
