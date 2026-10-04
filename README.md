@@ -33,6 +33,7 @@ A full-stack construction expense tracking project with a Python FastAPI backend
 - Database: `SQLite` via `SQLAlchemy` and `aiosqlite`
 - Endpoints:
   - `GET /expenses` — Returns all stored expenses.
+  - `POST /chat` — Answers questions about expense and sanctioned-loan data using Groq.
   - `POST /expenses` — Creates a single expense using form data.
   - `GET /loan/sanctioned-amounts` — Returns the sanctioned amount history.
   - `POST /loan/sanctioned-amounts` — Adds a sanctioned amount increment.
@@ -109,6 +110,7 @@ This starts the UI on `http://localhost:5173`.
 ## Notes
 
 - The backend database file is created automatically when the server starts.
+- Set `GROQ_API_KEY` in `backend/.env` to enable the chat assistant. Optionally set `GROQ_MODEL` to choose a Groq model; the default is `openai/gpt-oss-120b`. The key stays on the backend, while expense summaries and recent records are sent to Groq to answer questions.
 - If you change backend or frontend ports, update `API_BASE_URL` in `frontend/src/pages/Home.tsx`.
 - The project currently uses `sqlite+aiosqlite:///./test.db` for local persistence.
 

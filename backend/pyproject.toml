@@ -8,6 +8,7 @@ dependencies = [
     "aiosqlite>=0.22.1",
     "asyncpg>=0.31.0",
     "fastapi>=0.136.1",
+    "groq>=0.13.0",
     "openpyxl>=3.1.5",
     "pandas>=3.0.3",
     "pydantic>=2.13.4",

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { PieChart, Pie, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { Package, Calendar, Upload, Plus, RefreshCw, AlertCircle, CheckCircle, IndianRupeeIcon, TrashIcon, Edit2, X, Download } from 'lucide-react'
+import { Package, Calendar, Upload, Plus, RefreshCw, AlertCircle, CheckCircle, IndianRupeeIcon, TrashIcon, Edit2, X, Download, MessageCircle, Send, Bot } from 'lucide-react'
 
 import './Home.css'
 
@@ -19,6 +19,11 @@ type SanctionedAmount = {
   amount: number
   sanction_date: string
   created_at: string
+}
+
+type ChatMessage = {
+  role: 'user' | 'assistant'
+  content: string
 }
 
 type ExpenseFilters = {
@@ -73,7 +78,20 @@ export const Home = () => {
   const [newSanctionedDate, setNewSanctionedDate] = useState(getToday)
   const [sanctionedEditId, setSanctionedEditId] = useState<string | null>(null)
   const [sanctionedEditForm, setSanctionedEditForm] = useState({ amount: '', date: '' })
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const [chatError, setChatError] = useState<string | null>(null)
+  const chatMessagesRef = useRef<HTMLDivElement>(null)
   const [filters, setFilters] = useState<ExpenseFilters>({ search: '', type: '', vendor: '', dateFrom: '', dateTo: '', amountMin: '', amountMax: '', sort: 'newest' })
+
+  useEffect(() => {
+    const messagesContainer = chatMessagesRef.current
+    if (messagesContainer) {
+      messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' })
+    }
+  }, [chatMessages, chatLoading])
+
   const handleEditClick = (expense: Expense) => {
     setEditId(expense.id)
     setEditForm({
@@ -422,6 +440,39 @@ export const Home = () => {
     })
   }
 
+  const handleChatSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    const content = chatInput.trim()
+    if (!content || chatLoading) return
+
+    const userMessage: ChatMessage = { role: 'user', content }
+    const conversation = [...chatMessages, userMessage].slice(-12)
+    setChatMessages(conversation)
+    setChatInput('')
+    setChatError(null)
+    setChatLoading(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: conversation }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        const detail = payload?.detail ?? response.statusText
+        throw new Error(Array.isArray(detail) ? detail.join(', ') : detail)
+      }
+      if (typeof payload?.answer !== 'string' || !payload.answer.trim()) {
+        throw new Error('The chat service returned an empty response.')
+      }
+      setChatMessages(current => [...current, { role: 'assistant', content: payload.answer }])
+    } catch (reason) {
+      setChatError(reason instanceof Error ? reason.message : 'Unable to contact the chat service.')
+    } finally {
+      setChatLoading(false)
+    }
+  }
+
   const handleDeleteIcon = async (event: React.MouseEvent, id: any) => {
     event.preventDefault()
     setError(null)
@@ -570,6 +621,69 @@ export const Home = () => {
           </section>
         </div>
       )}
+      <section className="chat-panel" aria-labelledby="chat-title">
+        <div className="chat-header">
+          <div className="chat-heading">
+            <span className="chat-icon"><MessageCircle size={20} /></span>
+            <div>
+              <h2 id="chat-title">Ask about your expenses</h2>
+              <p>Ask questions about vendors, categories, spending, and loan amounts.</p>
+            </div>
+          </div>
+          {chatMessages.length > 0 && (
+            <button className="chat-clear" type="button" disabled={chatLoading} onClick={() => { setChatMessages([]); setChatError(null) }}>
+              New chat
+            </button>
+          )}
+        </div>
+
+        <div ref={chatMessagesRef} className="chat-messages" role="log" aria-live="polite" aria-relevant="additions">
+          {chatMessages.length === 0 ? (
+            <div className="chat-welcome">
+              <Bot size={22} />
+              <p>Try asking “How much have I spent at Morang?”</p>
+            </div>
+          ) : (
+            chatMessages.map((message, index) => (
+              <div className={`chat-message chat-message-${message.role}`} key={`${index}-${message.role}`}>
+                {message.role === 'assistant' && <Bot size={18} aria-hidden="true" />}
+                <p>{message.content}</p>
+              </div>
+            ))
+          )}
+          {chatLoading && (
+            <div className="chat-message chat-message-assistant">
+              <Bot size={18} aria-hidden="true" />
+              <p>Checking your expense records…</p>
+            </div>
+          )}
+        </div>
+
+        {chatMessages.length === 0 && (
+          <div className="chat-suggestions" aria-label="Example questions">
+            {['Which vendor have I spent the most with?', 'What is my total spend?', 'Show my spending by category'].map(question => (
+              <button key={question} type="button" onClick={() => setChatInput(question)}>{question}</button>
+            ))}
+          </div>
+        )}
+
+        {chatError && <p className="chat-error" role="alert">{chatError}</p>}
+        <form className="chat-form" onSubmit={handleChatSubmit}>
+          <input
+            aria-label="Ask a question about your expenses"
+            value={chatInput}
+            onChange={event => setChatInput(event.target.value)}
+            placeholder="Ask about a vendor, date, or amount…"
+            maxLength={2000}
+          />
+          <button type="submit" disabled={chatLoading || !chatInput.trim()} aria-label="Send message">
+            <Send size={18} />
+            <span>Ask</span>
+          </button>
+        </form>
+        <p className="chat-privacy-note">Expense summaries and recent records are sent to Groq to generate answers. Your API key stays on the backend.</p>
+      </section>
+
       {topType && (
         <section className="top-type-strip">
           <div className="top-type-card">
@@ -911,4 +1025,3 @@ export const Home = () => {
     </main>
   )
 }
-
